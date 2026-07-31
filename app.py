@@ -53,8 +53,8 @@ def render_metrics(filtered_df):
         count = len(filtered_df[filtered_df['Roles_List'].apply(lambda x: role in x)])
         metric.metric(role.split()[1] + "s", count)
 
-def roster_tab(df):
-    st.sidebar.header("🕹️ Roster Filters")
+def availability_tab(df):
+    st.sidebar.header("🕹️ Availability Filters")
     
     sel_day = st.sidebar.selectbox("Select Raid Day", DAYS)
     day_col = [c for c in df.columns if sel_day in c][0]
@@ -83,7 +83,7 @@ def roster_tab(df):
 
     f_df = df[mask].copy()
 
-    st.title(f"{sel_day} Roster Sign-ups")
+    st.title(f"{sel_day} Availability")
     render_metrics(f_df)
     st.divider()
 
@@ -104,7 +104,7 @@ def roster_tab(df):
             }
         )
     else:
-        st.warning("No sign-ups match these filters.")
+        st.warning("No Availability match these filters.")
 
 def lookup_tab(df):
     st.header("🔍 Member Lookup")
@@ -146,10 +146,10 @@ def main():
     if not df.empty:
         # Sidebar Navigation
         st.sidebar.title("Navigation")
-        page = st.sidebar.radio("Go to", ["📅 Daily Roster", "🔍 Player Lookup"])
+        page = st.sidebar.radio("Go to", ["📅 Daily Availability", "🔍 Player Lookup"])
         
-        if page == "📅 Daily Roster":
-            roster_tab(df)
+        if page == "📅 Daily Availability":
+            availability_tab(df)
         else:
             lookup_tab(df)
     else:
