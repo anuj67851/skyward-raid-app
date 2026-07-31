@@ -16,7 +16,7 @@ st.markdown("""
     .debuffer { background-color: #8957e5; color: white; }
     .dps { background-color: #da3633; color: white; }
     </style>
-    """, unsafe_allow_stdio=True)
+    """, unsafe_allow_html=True)
 
 # --- 2. DATA CONSTANTS ---
 SHEET_ID = "1BX70II8RqaoFFby2PnTsf9_Ayu2CxBqCFNSVJNI88Wo"
