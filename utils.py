@@ -51,16 +51,32 @@ def get_roles(build_text):
     return list(set(found_roles))
 
 def get_build_display(build_text):
-    roles = get_roles(build_text)
-    # Extract emojis from role names (e.g., "🛡️ Tank" -> "🛡️")
-    icons = "".join(sorted([r.split()[0] for r in roles], key=lambda x: [ROLE_EMOJIS[k] for k in ROLE_EMOJIS].index(x) if x in ROLE_EMOJIS.values() else 99))
-    # Actually, simpler to just match them
-    display_icons = []
-    for role in ["🛡️ Tank", "🌿 Healer", "🎭 Debuffer", "⚔️ DPS"]:
-        if role in roles:
-            display_icons.append(role.split()[0])
+    if pd.isna(build_text) or str(build_text).strip() == "":
+        return ""
     
-    return f"{''.join(display_icons)} {build_text}"
+    parts = [p.strip() for p in str(build_text).split(',')]
+    display_parts = []
+    
+    for part in parts:
+        found_icons = []
+        for role, keywords in ROLES_CONFIG.items():
+            if role == "⚔️ DPS": continue
+            if any(kw in part for kw in keywords):
+                found_icons.append(role.split()[0])
+        
+        if not found_icons:
+            # Check if it's explicitly a DPS keyword or just default to DPS
+            dps_keywords = ROLES_CONFIG["⚔️ DPS"]
+            if any(dkw in part for dkw in dps_keywords):
+                found_icons.append("⚔️")
+            else:
+                # If no keywords match at all, still mark as DPS but maybe check if it's non-empty
+                if part:
+                    found_icons.append("⚔️")
+            
+        display_parts.append(f"{''.join(found_icons)} {part}")
+    
+    return ", ".join(display_parts)
 
 def clean_times(raw_str, tz="Pacific"):
     if pd.isna(raw_str) or str(raw_str).strip() == "":

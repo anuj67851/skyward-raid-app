@@ -117,18 +117,13 @@ def lookup_tab(df):
         
         st.markdown(f"### Player: {p['Username']}")
         
-        col1, col2 = st.columns(2)
+        col1, _ = st.columns([2, 1])
         with col1:
             st.info("**Basic Info**")
             st.write(f"**Discord:** `{p['Discord ID']}`")
             st.write(f"**UID:** `{p['UID']}`")
             st.write(f"**Server:** {p.iloc[7]}")
             st.write(f"**Builds:** {p['Display_Build']}")
-        
-        with col2:
-            st.info("**Roles**")
-            for role in p['Roles_List']:
-                st.write(role)
 
         st.divider()
 
