@@ -54,10 +54,17 @@ def get_build_display(build_text):
     if pd.isna(build_text) or str(build_text).strip() == "":
         return ""
     
-    parts = [p.strip() for p in str(build_text).split(',')]
+    # Remove any existing role emojis to avoid duplication or misplacement
+    clean_text = str(build_text)
+    for emoji in ROLE_EMOJIS.values():
+        clean_text = clean_text.replace(emoji, "")
+    clean_text = clean_text.strip()
+    
+    parts = [p.strip() for p in clean_text.split(',')]
     display_parts = []
     
     for part in parts:
+        if not part: continue
         found_icons = []
         for role, keywords in ROLES_CONFIG.items():
             if role == "⚔️ DPS": continue
@@ -67,12 +74,8 @@ def get_build_display(build_text):
         if not found_icons:
             # Check if it's explicitly a DPS keyword or just default to DPS
             dps_keywords = ROLES_CONFIG["⚔️ DPS"]
-            if any(dkw in part for dkw in dps_keywords):
+            if any(dkw in part for dkw in dps_keywords) or part:
                 found_icons.append("⚔️")
-            else:
-                # If no keywords match at all, still mark as DPS but maybe check if it's non-empty
-                if part:
-                    found_icons.append("⚔️")
             
         display_parts.append(f"{''.join(found_icons)} {part}")
     

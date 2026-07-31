@@ -33,6 +33,7 @@ def load_data():
         
         # Pre-process data
         df['Roles_List'] = df.iloc[:, 4].apply(get_roles)
+        # Use get_build_display on the raw column to ensure icons are placed correctly
         df['Display_Build'] = df.iloc[:, 4].apply(get_build_display)
         
         return df
@@ -119,7 +120,6 @@ def lookup_tab(df):
         
         col1, _ = st.columns([2, 1])
         with col1:
-            st.info("**Basic Info**")
             st.write(f"**Discord:** `{p['Discord ID']}`")
             st.write(f"**UID:** `{p['UID']}`")
             st.write(f"**Server:** {p.iloc[7]}")
