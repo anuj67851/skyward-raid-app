@@ -36,29 +36,25 @@ def get_data():
 
 # --- 3. STRICT ROLE LOGIC ---
 def get_role_list(build_text):
-    """Matches the exact fixed set of classes."""
     text = str(build_text)
     roles = []
     if "Stonesplit-Might (Tank)" in text: roles.append('🛡️ Tank')
     if "Silkbind-Deluge (Healer)" in text: roles.append('🌿 Healer')
     if "Bamboocut-Dust (Ropebrella)" in text: roles.append('🎭 Debuffer')
 
-    # If they have anything else listed that isn't one of the 3 roles above, they are also a DPS
-    # This captures Nameless, Strat, Heng, Gauntlets, Fanbrella
-    remaining_text = text.replace("Stonesplit-Might (Tank)", "").replace("Silkbind-Deluge (Healer)", "").replace("Bamboocut-Dust (Ropebrella)", "").replace(",", "").strip()
-    if remaining_text or not roles:
+    # Check for any remaining text to classify as DPS
+    rem = text.replace("Stonesplit-Might (Tank)", "").replace("Silkbind-Deluge (Healer)", "").replace("Bamboocut-Dust (Ropebrella)", "").replace(",", "").strip()
+    if rem or not roles:
         roles.append('⚔️ DPS')
     return list(set(roles))
 
 def get_build_with_icons(build_text):
-    """Prepends icons to the full build string based on the roles inside it."""
     text = str(build_text)
     icons = []
     if "Stonesplit-Might (Tank)" in text: icons.append('🛡️')
     if "Silkbind-Deluge (Healer)" in text: icons.append('🌿')
     if "Bamboocut-Dust (Ropebrella)" in text: icons.append('🎭')
 
-    # Check for DPS classes
     dps_classes = ["Nameless", "Strat", "Heng", "Gauntlets", "Fanbrella"]
     if any(d in text for d in dps_classes) or not icons:
         icons.append('⚔️')
@@ -79,7 +75,7 @@ def clean_times(raw_str, tz="Pacific"):
             cleaned.append(slot.strip())
     return cleaned
 
-# --- 4. PROCESSING ---
+# --- 4. DATA PROCESSING ---
 df = get_data()
 
 if not df.empty:
@@ -88,7 +84,7 @@ if not df.empty:
 
     tab_roster, tab_search = st.tabs(["📅 Daily Roster", "🔍 Player Lookup"])
 
-    # --- DAILY ROSTER ---
+    # --- TAB 1: DAILY ROSTER ---
     with tab_roster:
         st.sidebar.header("🕹️ Roster Filters")
         day_options = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -96,7 +92,7 @@ if not df.empty:
         day_col = [c for c in df.columns if sel_day in c][0]
         tz_view = st.sidebar.radio("Timezone", ["Pacific", "Eastern"])
 
-        # Time Filter
+        # Time Filter logic
         df['Daily_Avail'] = df[day_col].apply(lambda x: clean_times(x, tz_view))
         all_times = sorted(list(set([t for sublist in df['Daily_Avail'] for t in sublist])))
         f_times = st.sidebar.multiselect("⏰ Time Slots", all_times, default=all_times)
@@ -105,14 +101,14 @@ if not df.empty:
         role_types = ['🛡️ Tank', '🌿 Healer', '🎭 Debuffer', '⚔️ DPS']
         f_roles = st.sidebar.multiselect("Roles", role_types, default=role_types)
 
-        # Apply Filters
+        # Application of Filters
         mask = (df['Daily_Avail'].apply(lambda x: any(t in f_times for t in x))) & \
                (df['Roles_List'].apply(lambda x: any(r in f_roles for r in x)))
         f_df = df[mask].copy()
 
         st.title(f"{sel_day} Roster Sign-ups")
 
-        # Metrics
+        # Metrics Summary
         m1, m2, m3, m4, m5 = st.columns(5)
         m1.metric("Total", len(f_df))
         m2.metric("Tanks", len(f_df[f_df['Roles_List'].apply(lambda x: '🛡️ Tank' in x)]))
@@ -125,12 +121,12 @@ if not df.empty:
         if not f_df.empty:
             f_df['Display_Time'] = f_df['Daily_Avail'].apply(lambda x: ", ".join(x))
 
-            # Sort: Tank -> Healer -> Debuffer -> DPS
+            # Priority Sort
             role_prio = {'🛡️ Tank': 0, '🌿 Healer': 1, '🎭 Debuffer': 2, '⚔️ DPS': 3}
             f_df['sort_val'] = f_df['Roles_List'].apply(lambda x: min([role_prio.get(r, 4) for r in x]))
             f_df = f_df.sort_values('sort_val')
 
-            # The Roster Table
+            # Roster Table Display
             st.dataframe(
                 f_df[['Icon_Build', 'Username', 'Display_Time', 'Discord ID', 'UID']],
                 use_container_width=True,
@@ -143,29 +139,36 @@ if not df.empty:
         else:
             st.warning("No sign-ups match these filters.")
 
-    # --- PLAYER LOOKUP ---
+    # --- TAB 2: PLAYER LOOKUP ---
     with tab_search:
-        st.header("🔍 Member Details")
+        st.header("🔍 Member Lookup")
         p_name = st.selectbox("Search Player", sorted(df['Username'].unique()))
+
         if p_name:
             p = df[df['Username'] == p_name].iloc[0]
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader(p['Username'])
-                st.write(f"**Builds:** {p['Icon_Build']}")
+
+            # Simple Member Info Header
+            st.markdown(f"### Player: {p['Username']}")
+
+            info_col, _ = st.columns([2, 1])
+            with info_col:
                 st.write(f"**Discord:** `{p['Discord ID']}`")
                 st.write(f"**UID:** `{p['UID']}`")
-            with col2:
-                st.subheader("Stats")
-                st.info(f"**Parse:** {p.iloc[8]}")
                 st.write(f"**Server:** {p.iloc[7]}")
+                st.write(f"**Builds:** {p['Icon_Build']}")
 
             st.divider()
+
+            # Weekly Schedule
             st.markdown("### Weekly Availability")
             sched = []
             for d in day_options:
                 c = [col for col in df.columns if d in col][0]
-                sched.append({"Day": d, "Pacific": ", ".join(clean_times(p[c], "Pacific")), "Eastern": ", ".join(clean_times(p[c], "Eastern"))})
+                sched.append({
+                    "Day": d,
+                    "Pacific": ", ".join(clean_times(p[c], "Pacific")) or "❌",
+                    "Eastern": ", ".join(clean_times(p[c], "Eastern")) or "❌"
+                })
             st.table(pd.DataFrame(sched))
 
 else:
