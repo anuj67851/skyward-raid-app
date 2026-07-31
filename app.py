@@ -144,10 +144,13 @@ def main():
     df = load_data()
     
     if not df.empty:
-        tab1, tab2 = st.tabs(["📅 Daily Roster", "🔍 Player Lookup"])
-        with tab1:
+        # Sidebar Navigation
+        st.sidebar.title("Navigation")
+        page = st.sidebar.radio("Go to", ["📅 Daily Roster", "🔍 Player Lookup"])
+        
+        if page == "📅 Daily Roster":
             roster_tab(df)
-        with tab2:
+        else:
             lookup_tab(df)
     else:
         st.error("Could not load data. Check connection to Google Sheet.")
