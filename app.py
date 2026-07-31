@@ -3,152 +3,165 @@ import pandas as pd
 import re
 
 # --- 1. APP CONFIG & STYLING ---
-st.set_page_config(page_title="Skyward Bond Roster", layout="wide")
+st.set_page_config(page_title="Skyward Bond Raid Manager", layout="wide")
 
-# Custom CSS for a "Prettier" Tabular Look
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
-    .stMetric { background-color: #161b22; padding: 15px; border-radius: 10px; border: 1px solid #30363d; }
-    .role-badge { padding: 4px 8px; border-radius: 5px; font-weight: bold; font-size: 0.8rem; }
-    .tank { background-color: #1f6feb; color: white; }
-    .healer { background-color: #238636; color: white; }
-    .debuffer { background-color: #8957e5; color: white; }
-    .dps { background-color: #da3633; color: white; }
+    .main { background-color: #0d1117; }
+    div[data-testid="stMetricValue"] { font-size: 24px; color: #58a6ff; }
+    div[data-testid="stMetric"] { 
+        background-color: #161b22; 
+        border: 1px solid #30363d; 
+        padding: 10px; 
+        border-radius: 8px; 
+    }
+    .stDataFrame { border: 1px solid #30363d; border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. DATA CONSTANTS ---
+# --- 2. DATA ENGINE ---
 SHEET_ID = "1BX70II8RqaoFFby2PnTsf9_Ayu2CxBqCFNSVJNI88Wo"
 GID = "169148548"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-# --- 3. CORE LOGIC ---
 @st.cache_data(ttl=300)
 def get_data():
-    df = pd.read_csv(CSV_URL)
-    df.columns = [c.strip() for c in df.columns]
-    return df
+    try:
+        df = pd.read_csv(CSV_URL)
+        df.columns = [c.strip() for c in df.columns]
+        return df
+    except Exception as e:
+        st.error(f"Failed to fetch sheet: {e}")
+        return pd.DataFrame()
 
-def classify_role(build):
-    b = str(build)
-    if "Stonesplit-Might (Tank)" in b: return '🛡️ Tank'
-    if "Silkbind-Deluge (Healer)" in b: return '🌿 Healer'
-    if "Bamboocut-Dust (Ropebrella)" in b: return '🎭 DeBuffer'
-    return '⚔️ DPS'
+def get_player_roles(build_text):
+    """Returns a list of roles found in the build text"""
+    text = str(build_text)
+    roles = []
+    if "Stonesplit-Might (Tank)" in text: roles.append('🛡️ Tank')
+    if "Silkbind-Deluge (Healer)" in text: roles.append('🌿 Healer')
+    if "Bamboocut-Dust (Ropebrella)" in text: roles.append('🎭 Buffer')
+    # If it contains none of the above or other text, it's DPS
+    if not roles or any(x in text for x in ["Nameless", "Strat", "Heng", "Gauntlets", "Fanbrella"]):
+        roles.append('⚔️ DPS')
+    return list(set(roles))
 
-def parse_time_logic(raw_str, tz="Pacific"):
-    """
-    Handles messy Google Form strings using Regex.
-    Input: '12pm Pacific/3pm Eastern - 3pm/6pm'
-    """
-    if pd.isna(raw_str) or raw_str == "": return []
-
-    slots = str(raw_str).split(',')
-    cleaned_slots = []
-
-    for slot in slots:
-        # Regex to find times: [Time] Pacific/[Time] Eastern - [Time]/[Time]
+def clean_times(raw_str, tz="Pacific"):
+    if pd.isna(raw_str) or str(raw_str).strip() == "": return []
+    raw_slots = str(raw_str).split(',')
+    cleaned = []
+    for slot in raw_slots:
         times = re.findall(r'(\d+[ap]m)', slot)
         if len(times) == 4:
-            if tz == "Pacific":
-                cleaned_slots.append(f"{times[0]} - {times[2]} PT")
-            else:
-                cleaned_slots.append(f"{times[1]} - {times[3]} ET")
-        else:
-            cleaned_slots.append(slot.strip())
+            if tz == "Pacific": cleaned.append(f"{times[0]}-{times[2]} PT")
+            else: cleaned.append(f"{times[1]}-{times[3]} ET")
+        else: cleaned.append(slot.strip())
+    return cleaned
 
-    return cleaned_slots
-
-# --- 4. DATA PROCESSING ---
+# --- 3. LOAD DATA ---
 df = get_data()
+
 if not df.empty:
-    # Set Roles
-    df['Role'] = df.iloc[:, 4].apply(classify_role)
+    # Pre-process columns
+    df['Detected_Roles'] = df.iloc[:, 4].apply(get_player_roles)
 
-    # Sidebar Filters
-    st.sidebar.header("🛡️ Roster Controls")
+    # Create Tabs
+    tab1, tab2 = st.tabs(["📅 Daily Roster", "🔍 Player Lookup"])
 
-    # Day Selection
-    day_options = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-    sel_day = st.sidebar.selectbox("📅 Raid Day", day_options)
-    day_col = [c for c in df.columns if sel_day in c][0]
+    # --- TAB 1: DAILY ROSTER ---
+    with tab1:
+        st.sidebar.header("📅 Roster Filters")
+        day_options = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        sel_day = st.sidebar.selectbox("Select Day", day_options)
+        day_col = [c for c in df.columns if sel_day in c][0]
+        tz_view = st.sidebar.radio("View Timezone", ["Pacific", "Eastern"])
 
-    # Timezone Toggle
-    tz_view = st.sidebar.radio("Timezone Display", ["Pacific", "Eastern"])
+        # Role filter: uses the list of detected roles
+        all_role_types = ['🛡️ Tank', '🌿 Healer', '🎭 Buffer', '⚔️ DPS']
+        f_roles = st.sidebar.multiselect("Show Roles", all_role_types, default=all_role_types)
 
-    # Clean the Day Column for the selected timezone
-    df['DisplayTime'] = df[day_col].apply(lambda x: ", ".join(parse_time_logic(x, tz_view)))
+        # Process availability
+        df['Daily_Avail'] = df[day_col].apply(lambda x: clean_times(x, tz_view))
 
-    # Advanced Filters
-    role_list = ['🛡️ Tank', '🌿 Healer', '🎭 DeBuffer', '⚔️ DPS']
-    f_roles = st.sidebar.multiselect("Roles", role_list, default=role_list)
+        # Filtering
+        mask = (df['Daily_Avail'].apply(len) > 0) & \
+               (df['Detected_Roles'].apply(lambda x: any(r in f_roles for r in x)))
+        f_df = df[mask].copy()
 
-    # Time Slot Filter
-    unique_times = sorted(list(set([t for sublist in df['DisplayTime'].str.split(', ') for t in sublist if t])))
-    f_times = st.sidebar.multiselect("⏰ Time Slots", unique_times, default=unique_times)
+        # Metrics
+        m1, m2, m3, m4, m5 = st.columns(5)
+        m1.metric("Total Players", len(f_df))
+        m2.metric("Tanks", len(f_df[f_df['Detected_Roles'].apply(lambda x: '🛡️ Tank' in x)]))
+        m3.metric("Heals", len(f_df[f_df['Detected_Roles'].apply(lambda x: '🌿 Healer' in x)]))
+        m4.metric("Buff", len(f_df[f_df['Detected_Roles'].apply(lambda x: '🎭 Buffer' in x)]))
+        m5.metric("DPS", len(f_df[f_df['Detected_Roles'].apply(lambda x: '⚔️ DPS' in x)]))
 
-    # Apply Filters
-    mask = (df['Role'].isin(f_roles)) & (df['DisplayTime'] != "")
-    f_df = df[mask].copy()
+        st.divider()
 
-    # Filter by specific time slots (if time slot filter is used)
-    if f_times:
-        f_df = f_df[f_df['DisplayTime'].apply(lambda x: any(t in x for t in f_times))]
-
-    # --- 5. MAIN DASHBOARD ---
-    st.title(f"Skyward Bond: {sel_day} Roster")
-
-    # Statistics Row
-    s1, s2, s3, s4, s5 = st.columns(5)
-    s1.metric("Total", len(f_df))
-    s2.metric("Tanks", len(f_df[f_df['Role'] == '🛡️ Tank']))
-    s3.metric("Healers", len(f_df[f_df['Role'] == '🌿 Healer']))
-    s4.metric("DeBuffer", len(f_df[f_df['Role'] == '🎭 DeBuffer']))
-    s5.metric("DPS", len(f_df[f_df['Role'] == '⚔️ DPS']))
-
-    st.divider()
-
-    # Layout: Table + Chart
-    col_table, col_chart = st.columns([3, 1])
-
-    with col_chart:
-        st.subheader("Role Balance")
         if not f_df.empty:
-            role_counts = f_df['Role'].value_counts()
-            st.bar_chart(role_counts, color="#1f6feb")
+            # Table View
+            f_df['Display Avail'] = f_df['Daily_Avail'].apply(lambda x: ", ".join(x))
 
-    with col_table:
-        st.subheader("Available Members")
-        if not f_df.empty:
-            # Sorting logic
-            role_order = {'🛡️ Tank': 0, '🌿 Healer': 1, '🎭 DeBuffer': 2, '⚔️ DPS': 3}
-            f_df['sort'] = f_df['Role'].map(role_order)
-            f_df = f_df.sort_values('sort')
+            # Sort by Roles (Tanks first)
+            f_df['sort_val'] = f_df['Detected_Roles'].apply(lambda x: min([all_role_types.index(r) for r in x if r in all_role_types] or [99]))
+            f_df = f_df.sort_values('sort_val')
 
-            # Create a clean tabular dataframe for display
-            display_df = f_df[[
-                'Role',
-                'Username',
-                'DisplayTime',
-                'Discord ID',
-                'UID'
-            ]].copy()
-
-            display_df.columns = ['Role', 'Player Name', 'Availability', 'Discord', 'UID']
-
-            # Use Streamlit's new built-in table (highly interactive)
             st.dataframe(
-                display_df,
+                f_df[[df.columns[4], 'Username', 'Display Avail', 'Discord ID', 'UID']],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Role": st.column_config.TextColumn("Role", width="small"),
-                    "Availability": st.column_config.TextColumn("Availability", width="large")
+                    df.columns[4]: st.column_config.TextColumn("Builds / Classes", width="medium"),
+                    "Display Avail": st.column_config.TextColumn("Time Slot", width="small")
                 }
             )
+
+            # Simple Chart
+            st.subheader("Role Distribution")
+            role_counts = pd.Series([r for sublist in f_df['Detected_Roles'] for r in sublist]).value_counts()
+            st.bar_chart(role_counts, color="#58a6ff")
         else:
-            st.warning("No players match your filters.")
+            st.warning(f"No sign-ups for {sel_day}.")
+
+    # --- TAB 2: PLAYER LOOKUP ---
+    with tab2:
+        st.subheader("Search Member Data")
+        search_name = st.selectbox("Select or Type Player Name", options=sorted(df['Username'].unique()))
+
+        if search_name:
+            p_data = df[df['Username'] == search_name].iloc[0]
+
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"### Player: {p_data['Username']}")
+                st.write(f"**Builds:** {p_data.iloc[4]}")
+                st.write(f"**Discord:** `{p_data['Discord ID']}`")
+                st.write(f"**UID:** `{p_data['UID']}`")
+                st.write(f"**Server:** {p_data.iloc[7]}")
+
+            with c2:
+                st.markdown("### Performance")
+                st.info(f"**Best Parse:** {p_data.iloc[8]}")
+                st.write(f"**Guild Tech Maxed:** {p_data.iloc[9]}")
+
+            st.divider()
+            st.markdown("### Weekly Schedule")
+
+            # Create a small table for their weekly availability
+            week_data = []
+            for day in day_options:
+                col = [c for c in df.columns if day in c][0]
+                raw_time = p_data[col]
+                pt_times = clean_times(raw_time, "Pacific")
+                et_times = clean_times(raw_time, "Eastern")
+
+                week_data.append({
+                    "Day": day,
+                    "Pacific Time": ", ".join(pt_times) if pt_times else "---",
+                    "Eastern Time": ", ".join(et_times) if et_times else "---"
+                })
+
+            st.table(pd.DataFrame(week_data))
 
 else:
-    st.error("Data connection failed.")
+    st.error("Data could not be loaded from Google Sheets.")
