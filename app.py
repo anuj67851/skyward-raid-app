@@ -1,14 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import (
-    ROLES_CONFIG, 
-    ROLE_PRIORITY, 
-    ROLE_COLORS, 
-    DAYS, 
-    get_roles, 
-    get_build_display, 
-    clean_times
-)
+from utils import ROLES_CONFIG, ROLE_PRIORITY, ROLE_COLORS, DAYS, get_roles, get_build_display, clean_times
 from database import init_db, save_roster, get_all_rosters, get_roster_details, delete_roster
 
 # Initialize Database
