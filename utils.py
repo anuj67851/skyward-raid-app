@@ -23,13 +23,6 @@ ROLE_PRIORITY = {
     "⚔️ DPS": 3
 }
 
-ROLE_COLORS = {
-    "🛡️ Tank": "#1e3a8a",   # Dark Blue
-    "🌿 Healer": "#064e3b", # Dark Green
-    "🎭 Debuffer": "#581c87", # Dark Purple
-    "⚔️ DPS": "#7f1d1d"     # Dark Red
-}
-
 DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
 # --- CORE LOGIC ---

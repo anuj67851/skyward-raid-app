@@ -1,10 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import ROLES_CONFIG, ROLE_PRIORITY, ROLE_COLORS, DAYS, get_roles, get_build_display, clean_times
-from database import init_db, save_roster, get_all_rosters, get_roster_details, delete_roster
-
-# Initialize Database
-init_db()
+from utils import ROLES_CONFIG, ROLE_PRIORITY, DAYS, get_roles, get_build_display, clean_times
 
 # --- 1. APP CONFIG & STYLING ---
 st.set_page_config(page_title="Skyward Bond Raid Manager", layout="wide")
@@ -155,129 +151,6 @@ def lookup_tab(df):
             })
         st.table(pd.DataFrame(sched))
 
-def roster_tab(df):
-    st.title("🛡️ Roster Management")
-    
-    menu = st.tabs(["Create Roster", "Saved Rosters"])
-    
-    with menu[0]:
-        st.subheader("Build New Roster")
-        
-        with st.expander("Roster Info", expanded=True):
-            col1, col2 = st.columns(2)
-            roster_name = col1.text_input("Roster Name", placeholder="e.g. Floor 10 Normal - Group A")
-            raid_date = col2.date_input("Raid Date")
-            gen_notes = st.text_area("General Roster Notes")
-        
-        st.divider()
-        
-        # Selection Area
-        st.markdown("### Select Players (10 Man)")
-        player_list = sorted(df['Username'].tolist())
-        
-        # Use columns for 10 slots
-        main_team_data = []
-        cols = st.columns(2)
-        
-        for i in range(10):
-            with cols[i % 2]:
-                st.markdown(f"**Slot {i+1}**")
-                p_name = st.selectbox(f"Player", [""] + player_list, key=f"slot_{i}")
-                
-                if p_name:
-                    p_info = df[df['Username'] == p_name].iloc[0]
-                    roles = p_info['Roles_List']
-                    p_role = st.selectbox(f"Role", roles, key=f"role_{i}")
-                    p_note = st.text_input(f"Notes", key=f"note_{i}")
-                    
-                    main_team_data.append({
-                        'username': p_name,
-                        'role': p_role,
-                        'notes': p_note
-                    })
-                st.markdown("---")
-
-        st.markdown("### Reserves / Standby")
-        num_reserves = st.number_input("Number of Reserves", min_value=0, max_value=10, value=2)
-        reserve_data = []
-        
-        if num_reserves > 0:
-            res_cols = st.columns(2)
-            for i in range(num_reserves):
-                with res_cols[i % 2]:
-                    r_name = st.selectbox(f"Reserve {i+1}", [""] + player_list, key=f"res_{i}")
-                    if r_name:
-                        r_info = df[df['Username'] == r_name].iloc[0]
-                        r_role = st.selectbox(f"Role", r_info['Roles_List'], key=f"res_role_{i}")
-                        r_note = st.text_input(f"Notes", key=f"res_note_{i}")
-                        reserve_data.append({
-                            'username': r_name,
-                            'role': r_role,
-                            'notes': r_note
-                        })
-
-        if st.button("💾 Save Roster", type="primary"):
-            if not roster_name:
-                st.error("Please provide a roster name.")
-            elif len(main_team_data) == 0:
-                st.error("Please add at least one player.")
-            else:
-                try:
-                    save_roster(roster_name, str(raid_date), gen_notes, main_team_data, reserve_data)
-                    st.success(f"Roster '{roster_name}' saved successfully!")
-                except Exception as e:
-                    st.error(f"Error saving roster: {e}")
-
-    with menu[1]:
-        st.subheader("Manage Saved Rosters")
-        saved_df = get_all_rosters()
-        
-        if saved_df.empty:
-            st.info("No saved rosters found.")
-        else:
-            selected_roster_name = st.selectbox("Select Roster to View", saved_df['name'].tolist())
-            
-            if selected_roster_name:
-                rid = saved_df[saved_df['name'] == selected_roster_name]['id'].iloc[0]
-                roster_meta, (m_team, r_team) = get_roster_details(rid)
-                
-                st.divider()
-                st.markdown(f"## {roster_meta['name']}")
-                st.caption(f"📅 Date: {roster_meta['raid_date']} | 📝 {roster_meta['general_notes']}")
-                
-                # Display Color Coded Roster
-                st.markdown("### Main Team")
-                t1, t2 = st.columns(2)
-                
-                for idx, row in m_team.reset_index(drop=True).iterrows():
-                    target_col = t1 if idx < 5 else t2
-                    color = ROLE_COLORS.get(row['role'], "#30363d")
-                    
-                    target_col.markdown(f"""
-                        <div style="background-color: {color}; padding: 10px; border-radius: 5px; margin-bottom: 5px; border: 1px solid #ffffff33;">
-                            <strong>{row['username']}</strong> - {row['role']}<br/>
-                            <small><i>{row['player_notes'] or ""}</i></small>
-                        </div>
-                    """, unsafe_allow_html=True)
-
-                if not r_team.empty:
-                    st.markdown("### Reserves")
-                    r_cols = st.columns(2)
-                    for idx, row in r_team.reset_index(drop=True).iterrows():
-                        target_col = r_cols[idx % 2]
-                        target_col.markdown(f"""
-                            <div style="background-color: #30363d; padding: 10px; border-radius: 5px; margin-bottom: 5px;">
-                                <strong>{row['username']}</strong> - {row['role']}<br/>
-                                <small><i>{row['player_notes'] or ""}</i></small>
-                            </div>
-                        """, unsafe_allow_html=True)
-                
-                st.divider()
-                if st.button("🗑️ Delete Roster"):
-                    delete_roster(rid)
-                    st.warning("Roster deleted.")
-                    st.rerun()
-
 # --- MAIN ---
 def main():
     apply_custom_css()
@@ -286,14 +159,12 @@ def main():
     if not df.empty:
         # Sidebar Navigation
         st.sidebar.title("Navigation")
-        page = st.sidebar.radio("Go to", ["📅 Daily Availability", "🔍 Player Lookup", "🛡️ Roster Management"])
+        page = st.sidebar.radio("Go to", ["📅 Daily Availability", "🔍 Player Lookup"])
         
         if page == "📅 Daily Availability":
             availability_tab(df)
-        elif page == "🔍 Player Lookup":
-            lookup_tab(df)
         else:
-            roster_tab(df)
+            lookup_tab(df)
     else:
         st.error("Could not load data. Check connection to Google Sheet.")
 
