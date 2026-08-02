@@ -160,8 +160,8 @@ def main():
         # Header area for Roster Link
         h_col1, h_col2 = st.columns([6, 1])
         with h_col2:
-            ROSTER_URL = "https://docs.google.com/spreadsheets/d/1A6xxd8gxHKdBsDbFOC4jOMtW8C4XxNRBsXL6h1Bz68o/edit?gid=1563516976#gid=1563516976"
-            st.link_button("📋 Roster", ROSTER_URL, use_container_width=True)
+            ROSTER_URL = "https://docs.google.com/spreadsheets/d/1A6xxd8gxHKdBsDbFOC4jOMtW8C4XxNRBsXL6h1Bz68o/"
+            st.link_button("📋 Roster Sheet", ROSTER_URL, use_container_width=True)
 
         # Sidebar Navigation
         st.sidebar.title("Navigation")
