@@ -159,6 +159,11 @@ def main():
     if not df.empty:
         # Sidebar Navigation
         st.sidebar.title("Navigation")
+        
+        # Roster Management Link
+        ROSTER_URL = "https://docs.google.com/spreadsheets/d/1A6xxd8gxHKdBsDbFOC4jOMtW8C4XxNRBsXL6h1Bz68o/edit?gid=1563516976#gid=1563516976"
+        st.sidebar.markdown(f"[📋 Roster Management Spreadsheet]({ROSTER_URL})")
+        
         page = st.sidebar.radio("Go to", ["📅 Daily Availability", "🔍 Player Lookup"])
         
         if page == "📅 Daily Availability":
