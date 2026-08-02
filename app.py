@@ -36,6 +36,14 @@ def load_data():
         # Use get_build_display on the raw column to ensure icons are placed correctly
         df['Display_Build'] = df.iloc[:, 4].apply(get_build_display)
         
+        # Region Mapping
+        region_map = {
+            "East": "NA East",
+            "West": "NA West",
+            "I am everywhere (GFN)": "GFN"
+        }
+        df['Region'] = df.iloc[:, 7].map(region_map).fillna(df.iloc[:, 7])
+        
         return df
     except Exception as e:
         st.error(f"Sheet Connection Error: {e}")
@@ -70,12 +78,17 @@ def availability_tab(df):
     role_options = list(ROLES_CONFIG.keys())
     f_roles = st.sidebar.multiselect("Roles", role_options, default=role_options)
 
+    # Region filter
+    region_options = sorted(df['Region'].unique().tolist())
+    f_regions = st.sidebar.multiselect("Region", region_options, default=region_options)
+
     # Search filter (New feature)
     search_query = st.sidebar.text_input("🔍 Search Player / Discord", "").lower()
 
     # Apply Filters
     mask = (df['Daily_Avail'].apply(lambda x: any(t in f_times for t in x))) & \
-           (df['Roles_List'].apply(lambda x: any(r in f_roles for r in x)))
+           (df['Roles_List'].apply(lambda x: any(r in f_roles for r in x))) & \
+           (df['Region'].isin(f_regions))
     
     if search_query:
         mask &= (df['Username'].str.lower().str.contains(search_query)) | \
@@ -95,7 +108,7 @@ def availability_tab(df):
         f_df = f_df.sort_values('sort_val')
 
         st.dataframe(
-            f_df[['Display_Build', 'Username', 'Display_Time', 'Discord ID', 'UID']],
+            f_df[['Display_Build', 'Username', 'Region', 'Display_Time', 'Discord ID', 'UID']],
             use_container_width=True,
             hide_index=True,
             column_config={
@@ -107,7 +120,7 @@ def availability_tab(df):
         st.warning("No Availability match these filters.")
 
 def lookup_tab(df):
-    st.header("🔍 Member Lookup")
+    st.header("🔍 Player Lookup")
     
     # Enhanced lookup: search by name or discord
     search_options = sorted(df['Username'].unique())
