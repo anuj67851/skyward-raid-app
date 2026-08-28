@@ -32,8 +32,8 @@ def load_data():
         df.columns = [c.strip() for c in df.columns]
         
         # Pre-process data
-        df['Roles_List'] = df.iloc[:, 4].apply(get_roles)
-        # Use get_build_display on the raw column to ensure icons are placed correctly
+        # Store as tuples to be hashable and immutable for better caching
+        df['Roles_List'] = df.iloc[:, 4].apply(lambda x: tuple(get_roles(x)))
         df['Display_Build'] = df.iloc[:, 4].apply(get_build_display)
         
         # Region Mapping
@@ -87,6 +87,7 @@ def availability_tab(df):
     search_query = st.sidebar.text_input("🔍 Search Player / Discord", "").lower()
 
     # Apply Filters
+    # Use tuples for membership checks as Roles_List is now a tuple
     mask = (df['Daily_Avail'].apply(lambda x: any(t in f_times for t in x))) & \
            (df['Roles_List'].apply(lambda x: any(r in f_roles for r in x))) & \
            (df['Region'].isin(f_regions))
@@ -155,7 +156,8 @@ def lookup_tab(df):
 # --- MAIN ---
 def main():
     apply_custom_css()
-    df = load_data()
+    # Always work on a copy of the cached data to prevent mutation warnings
+    df = load_data().copy()
     
     if not df.empty:
         # Header area for Roster Link
