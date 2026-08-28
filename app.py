@@ -108,7 +108,7 @@ def availability_tab(df):
         f_df = f_df.sort_values('sort_val')
 
         st.dataframe(
-            f_df[['Display_Build', 'Username', 'Region', 'Display_Time', 'Discord ID', 'UID']],
+            f_df[['Display_Build', 'Username', 'Region', 'Display_Time', 'Discord Name', 'UID']],
             use_container_width=True,
             hide_index=True,
             column_config={
@@ -133,7 +133,7 @@ def lookup_tab(df):
         
         col1, _ = st.columns([2, 1])
         with col1:
-            st.write(f"**Discord:** `{p['Discord ID']}`")
+            st.write(f"**Discord:** `{p['Discord Name']}`")
             st.write(f"**UID:** `{p['UID']}`")
             st.write(f"**Server:** {p.iloc[7]}")
             st.write(f"**Builds:** {p['Display_Build']}")
