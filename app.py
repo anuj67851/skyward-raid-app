@@ -92,7 +92,7 @@ def availability_tab(df):
     
     if search_query:
         mask &= (df['Username'].str.lower().str.contains(search_query)) | \
-                (df['Discord ID'].str.lower().str.contains(search_query))
+                (df['Discord Name'].str.lower().str.contains(search_query))
 
     f_df = df[mask].copy()
 
