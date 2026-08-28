@@ -25,7 +25,7 @@ SHEET_ID = "1BX70II8RqaoFFby2PnTsf9_Ayu2CxBqCFNSVJNI88Wo"
 GID = "169148548"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_data():
     try:
         df = pd.read_csv(CSV_URL)
@@ -69,6 +69,7 @@ def availability_tab(df):
     tz_view = st.sidebar.radio("Timezone", ["Pacific", "Eastern"])
 
     # Process daily availability based on selection
+    df = df.copy()
     df['Daily_Avail'] = df[day_col].apply(lambda x: clean_times(x, tz_view))
     
     # Filters
